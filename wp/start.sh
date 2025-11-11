@@ -109,6 +109,9 @@ case $mode in
         echo "访问地址:"
         echo "  - 健康检查: http://${HOST:-0.0.0.0}:${PORT:-5000}/api/health"
         echo "  - API文档: http://${HOST:-0.0.0.0}:${PORT:-5000}/docs"
+        echo "  - 知识库UI: http://${HOST:-0.0.0.0}:${PORT:-5000}/kb"
+        echo ""
+        echo "提示: 运行测试请使用 'python -m unittest discover tests -v'"
         echo ""
         python3 server.py
         ;;
@@ -131,6 +134,7 @@ case $mode in
         echo "访问地址:"
         echo "  - 健康检查: http://${HOST:-0.0.0.0}:${PORT:-5000}/api/health"
         echo "  - API文档: http://${HOST:-0.0.0.0}:${PORT:-5000}/docs"
+        echo "  - 知识库UI: http://${HOST:-0.0.0.0}:${PORT:-5000}/kb"
         echo ""
         
         gunicorn -w $WORKERS \
@@ -153,6 +157,7 @@ case $mode in
         echo "访问地址:"
         echo "  - 健康检查: http://${HOST:-0.0.0.0}:${PORT:-5000}/api/health"
         echo "  - API文档: http://${HOST:-0.0.0.0}:${PORT:-5000}/docs"
+        echo "  - 知识库UI: http://${HOST:-0.0.0.0}:${PORT:-5000}/kb"
         echo ""
         
         python3 -c "from waitress import serve; from server import app; serve(app, host='${HOST:-0.0.0.0}', port=${PORT:-5000})"

@@ -29,6 +29,12 @@ python test_crawler_integration.py
 
 # 运行 API 测试（需要启动服务器）
 python test_crawler.py
+
+# 运行知识库模块完整测试（使用unittest）
+python -m unittest tests.test_knowledge_module -v
+
+# 或运行所有测试
+python -m unittest discover tests -v
 ```
 
 ## 启动服务
@@ -78,6 +84,59 @@ curl -X GET http://localhost:5000/api/crawler/articles/{article_id} \
 - `self.base_url`: 爬取的基础 URL
 - `self.crawl_delay`: 请求间隔时间（秒）
 
+## 知识库功能
+
+爬虫系统集成了知识库模块，用于管理和查询已爬取的文章及提取的网盘链接。
+
+### 知识库工作流程
+
+1. **爬取文章** - 使用爬虫服务从 lewz.cn/jprj 爬取文章并存入 `articles` 表
+2. **提取链接** - 从文章内容中提取百度网盘分享链接，存入 `extracted_links` 表
+3. **转存分享** - 将链接转存到指定账户并生成新的分享链接
+4. **知识库查询** - 通过知识库API查询、过滤、导出所有数据
+
+### 访问知识库UI
+
+启动服务后，访问 http://localhost:5000/kb 可以使用Web界面管理知识库。
+
+### 知识库API端点
+
+- `GET /api/knowledge/entries` - 获取条目列表（支持分页、搜索、过滤、排序）
+- `GET /api/knowledge/tags` - 获取标签列表
+- `GET /api/knowledge/statuses` - 获取状态统计
+- `GET /api/knowledge/export` - 导出CSV文件
+- `GET /api/knowledge/entry/{id}` - 获取单个条目详情
+
+所有API端点需要使用 `X-API-Key` 请求头进行身份验证。
+
+### 使用示例
+
+```bash
+# 获取完成状态的条目
+curl -H "X-API-Key: your_api_key" \
+  "http://localhost:5000/api/knowledge/entries?status=completed&page=1&page_size=20"
+
+# 导出所有已完成条目为CSV
+curl -H "X-API-Key: your_api_key" \
+  "http://localhost:5000/api/knowledge/export?status=completed" \
+  -o knowledge_export.csv
+```
+
+### 数据库索引
+
+知识库模块自动创建以下性能索引：
+- `idx_articles_title` - 文章标题索引
+- `idx_articles_crawled_at` - 爬取时间索引
+- `idx_extracted_links_created_at` - 链接创建时间索引
+- `idx_extracted_links_updated_at` - 链接更新时间索引
+- `idx_extracted_links_new_link` - 新链接索引
+
+这些索引在运行 `init_db.py` 时自动创建。
+
 ## 详细文档
 
-请参阅 `docs/CRAWLER.md` 获取完整文档。
+- **爬虫功能**: `docs/CRAWLER.md`
+- **知识库API**: `README_KNOWLEDGE_API.md`
+- **知识库存储层**: `README_KNOWLEDGE_REPO.md`
+- **知识库UI**: `KNOWLEDGE_UI_README.md`
+- **链接提取**: `README_LINK_EXTRACTOR.md`

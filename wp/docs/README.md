@@ -9,6 +9,9 @@
 - ✅ **OpenAPI文档**：内置Swagger UI，方便接口调试和文档查看
 - ✅ **多账户支持**：支持同时管理多个百度网盘账户
 - ✅ **批量操作**：批量转存分享链接，批量生成分享链接
+- ✅ **爬虫集成**：自动爬取网站文章和提取网盘链接
+- ✅ **知识库管理**：统一管理文章和网盘链接，支持搜索、过滤、导出
+- ✅ **Web界面**：提供知识库管理Web UI
 - ✅ **速率限制**：内置API速率限制，防止滥用
 - ✅ **智能节流**：自动控制请求频率，避免触发百度限制
 - ✅ **Docker支持**：提供完整的Docker部署方案
@@ -16,6 +19,7 @@
 - ✅ **日志系统**：专业的日志记录和管理
 - ✅ **健康检查**：内置健康检查接口
 - ✅ **优雅关闭**：支持优雅关闭，不丢失数据
+- ✅ **完整测试**：提供基于unittest的完整测试套件
 
 ## 快速开始
 
@@ -81,6 +85,17 @@ chmod +x start.sh
 
 - 健康检查：http://localhost:5000/api/health
 - API文档：http://localhost:5000/docs
+- 知识库UI：http://localhost:5000/kb
+
+#### 7. 运行测试
+
+```bash
+# 运行所有测试
+python -m unittest discover tests -v
+
+# 只运行知识库模块测试
+python -m unittest tests.test_knowledge_module -v
+```
 
 ### 方式2：Docker部署（推荐）
 
@@ -284,6 +299,64 @@ curl -X POST http://localhost:5000/api/transfer/start \
   }'
 ```
 
+### 知识库功能
+
+#### 1. 爬取文章
+
+```bash
+# 开始爬取 lewz.cn/jprj 网站
+curl -X POST http://localhost:5000/api/crawler/start \
+  -H "X-API-Key: your_secret_key"
+```
+
+#### 2. 提取链接
+
+```bash
+# 从文章中提取百度网盘分享链接
+curl -X POST http://localhost:5000/api/links/extract \
+  -H "X-API-Key: your_secret_key"
+```
+
+#### 3. 处理链接（转存+分享）
+
+```bash
+# 自动转存到wp1账户并生成新分享
+curl -X POST http://localhost:5000/api/links/process \
+  -H "X-API-Key: your_secret_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mode": "all"
+  }'
+```
+
+#### 4. 查询知识库
+
+```bash
+# 获取完成状态的条目（支持分页、搜索、过滤）
+curl "http://localhost:5000/api/knowledge/entries?status=completed&page=1&page_size=20" \
+  -H "X-API-Key: your_secret_key"
+
+# 获取标签列表
+curl http://localhost:5000/api/knowledge/tags \
+  -H "X-API-Key: your_secret_key"
+
+# 导出CSV
+curl "http://localhost:5000/api/knowledge/export?status=completed" \
+  -H "X-API-Key: your_secret_key" \
+  -o knowledge_export.csv
+```
+
+#### 5. 访问Web UI
+
+在浏览器中访问 http://localhost:5000/kb 使用可视化界面管理知识库。
+
+详细知识库文档：
+- [知识库API文档](../README_KNOWLEDGE_API.md)
+- [知识库存储层文档](../README_KNOWLEDGE_REPO.md)
+- [知识库测试文档](KNOWLEDGE_TESTING.md)
+- [爬虫功能文档](../README_CRAWLER.md)
+- [链接提取文档](../README_LINK_EXTRACTOR.md)
+
 ## 配置说明
 
 详细配置说明请参考 [CONFIG.md](CONFIG.md)
@@ -300,25 +373,35 @@ curl -X POST http://localhost:5000/api/transfer/start \
 
 ```
 wp/
-├── server.py              # 主服务器入口
-├── api_server.py          # API路由定义
-├── core_service.py        # 核心业务逻辑
-├── baidu_pan_adapter.py   # 百度网盘适配器
-├── config.py              # 配置管理
-├── logger.py              # 日志系统
-├── init_db.py             # 数据库初始化
-├── test_api.py            # API测试
-├── requirements.txt       # Python依赖
-├── .env.example           # 环境变量模板
-├── Dockerfile             # Docker镜像
-├── docker-compose.yml     # Docker Compose配置
-├── start.sh               # 启动脚本
-├── baidu-pan-server.service  # Systemd服务配置
+├── server.py                    # 主服务器入口
+├── api_server.py                # API路由定义
+├── core_service.py              # 核心业务逻辑
+├── baidu_pan_adapter.py         # 百度网盘适配器
+├── crawler_service.py           # 爬虫服务
+├── link_extractor_service.py    # 链接提取服务
+├── link_processor_service.py    # 链接处理服务
+├── knowledge_repository.py      # 知识库数据访问层
+├── knowledge_api.py             # 知识库API
+├── config.py                    # 配置管理
+├── logger.py                    # 日志系统
+├── init_db.py                   # 数据库初始化
+├── requirements.txt             # Python依赖
+├── .env.example                 # 环境变量模板
+├── Dockerfile                   # Docker镜像
+├── docker-compose.yml           # Docker Compose配置
+├── start.sh                     # 启动脚本
+├── baidu-pan-server.service     # Systemd服务配置
+├── tests/
+│   ├── __init__.py              # 测试模块初始化
+│   └── test_knowledge_module.py # 知识库完整测试套件
+├── static/
+│   └── knowledge/               # 知识库Web UI
 └── docs/
-    ├── README.md          # 项目说明
-    ├── API.md             # API文档
-    ├── CONFIG.md          # 配置说明
-    └── DEPLOYMENT.md      # 部署指南
+    ├── README.md                # 项目说明
+    ├── API.md                   # API文档
+    ├── CONFIG.md                # 配置说明
+    ├── DEPLOYMENT.md            # 部署指南
+    └── KNOWLEDGE_TESTING.md     # 知识库测试文档
 ```
 
 ## 常见问题

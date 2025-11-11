@@ -313,21 +313,38 @@ print(dashboard_data)
 
 ## 测试
 
-运行测试脚本验证功能：
+### 运行完整测试套件
+
+知识库模块提供基于unittest的完整测试套件，使用隔离的临时数据库：
 
 ```bash
 cd /home/engine/project/wp
+
+# 运行完整的知识库测试（推荐）
+python -m unittest tests.test_knowledge_module.TestKnowledgeRepository -v
+
+# 或运行所有知识库测试（包括API测试）
+python -m unittest tests.test_knowledge_module -v
+```
+
+### 运行旧版测试脚本
+
+也可以运行独立的测试脚本（会修改配置的数据库）：
+
+```bash
 python test_knowledge_repository.py
 ```
 
-测试覆盖：
+### 测试覆盖
+
+完整测试套件涵盖：
 - ✅ 标签派生逻辑（正常URL、短URL、空URL、非法URL）
 - ✅ 列出条目（分页、搜索、过滤、排序）
-- ✅ 搜索功能（多字段搜索）
-- ✅ 状态过滤
-- ✅ 标签过滤
-- ✅ 日期范围过滤
-- ✅ 获取标签列表
+- ✅ 搜索功能（多字段全文搜索）
+- ✅ 状态过滤（pending/completed/transferred/failed）
+- ✅ 标签过滤（动态标签提取）
+- ✅ 日期范围过滤（起始/结束日期）
+- ✅ 获取标签列表（去重排序）
 - ✅ 状态统计
 - ✅ 导出准备（字段验证）
 

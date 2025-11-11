@@ -408,13 +408,49 @@ getEntries({
 3. **访问控制:** 根据需要配置CORS策略
 4. **速率限制:** 考虑启用速率限制防止滥用
 
+## 测试
+
+知识库模块提供完整的自动化测试套件。
+
+### 运行测试
+
+```bash
+# 运行所有知识库测试
+cd wp
+python -m unittest tests.test_knowledge_module -v
+
+# 只测试存储层
+python -m unittest tests.test_knowledge_module.TestKnowledgeRepository -v
+
+# 只测试API层
+python -m unittest tests.test_knowledge_module.TestKnowledgeAPI -v
+```
+
+### 测试特点
+
+- 使用隔离的临时SQLite数据库
+- 不影响生产数据
+- 覆盖所有主要功能和边缘情况
+- 包含认证、参数验证、错误处理等测试
+
+详细测试文档请参阅 [知识库测试文档](docs/KNOWLEDGE_TESTING.md)。
+
 ## 相关文档
 
 - [知识库存储层文档](README_KNOWLEDGE_REPO.md)
+- [知识库测试文档](docs/KNOWLEDGE_TESTING.md)
+- [知识库UI文档](KNOWLEDGE_UI_README.md)
 - [Swagger API文档](http://localhost:5000/docs)
 - [链接提取功能文档](README_LINK_EXTRACTOR.md)
+- [爬虫功能文档](README_CRAWLER.md)
 
 ## 更新日志
+
+### v1.1.0 (2024-11)
+
+- 添加完整的unittest测试套件
+- 改进文档和使用示例
+- 新增测试隔离机制
 
 ### v1.0.0 (2024-11)
 
