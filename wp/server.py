@@ -23,6 +23,7 @@ from config import get_config, Config
 from logger import get_logger
 from core_service import CoreService
 from init_db import initialize_database
+from crawler_service import CrawlerService
 
 # 初始化配置
 config = get_config()
@@ -108,6 +109,10 @@ swagger_template = {
         {
             "name": "账户",
             "description": "账户管理接口"
+        },
+        {
+            "name": "爬虫",
+            "description": "文章爬取相关接口"
         }
     ]
 }
@@ -118,6 +123,7 @@ swagger = Swagger(app, config=swagger_config, template=swagger_template)
 services: Dict[str, CoreService] = {}  # 账户名 -> 服务实例
 accounts: Dict[str, str] = {}  # 账户名 -> Cookie
 api_secret_key: str = config.API_SECRET_KEY
+crawler_service: Optional[CrawlerService] = None  # 爬虫服务实例
 
 
 def load_accounts_from_env():
@@ -1106,6 +1112,195 @@ def list_accounts():
         'success': True,
         'data': account_list
     })
+
+
+# ============================================================================
+# 爬虫接口
+# ============================================================================
+
+def get_crawler_service() -> CrawlerService:
+    """获取或创建爬虫服务实例"""
+    global crawler_service
+    if crawler_service is None:
+        crawler_service = CrawlerService(config)
+    return crawler_service
+
+
+@app.route('/api/crawler/start', methods=['POST'])
+@require_auth
+@limiter.limit("5 per hour")
+def start_crawling():
+    """
+    开始爬取lewz.cn/jprj文章
+    ---
+    tags:
+      - 爬虫
+    security:
+      - ApiKeyAuth: []
+    responses:
+      200:
+        description: 爬取任务已启动
+      401:
+        description: 未授权
+    """
+    try:
+        service = get_crawler_service()
+        
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(service.crawl_jprj_articles())
+        loop.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '爬取任务完成',
+            'data': result
+        })
+        
+    except Exception as e:
+        logger.error(f"爬取任务失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '爬取任务失败'
+        }), 500
+
+
+@app.route('/api/crawler/articles', methods=['GET'])
+@require_auth
+def get_articles():
+    """
+    获取已爬取的文章列表
+    ---
+    tags:
+      - 爬虫
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - name: limit
+        in: query
+        type: integer
+        default: 100
+        description: 返回数量限制
+      - name: offset
+        in: query
+        type: integer
+        default: 0
+        description: 偏移量
+    responses:
+      200:
+        description: 文章列表
+      401:
+        description: 未授权
+    """
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        service = get_crawler_service()
+        articles = service.get_articles(limit, offset)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'articles': articles,
+                'limit': limit,
+                'offset': offset,
+                'count': len(articles)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"获取文章列表失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '获取文章列表失败'
+        }), 500
+
+
+@app.route('/api/crawler/articles/<article_id>', methods=['GET'])
+@require_auth
+def get_article(article_id):
+    """
+    获取文章详情
+    ---
+    tags:
+      - 爬虫
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - name: article_id
+        in: path
+        type: string
+        required: true
+        description: 文章唯一ID
+    responses:
+      200:
+        description: 文章详情
+      404:
+        description: 文章不存在
+      401:
+        description: 未授权
+    """
+    try:
+        service = get_crawler_service()
+        article = service.get_article_by_id(article_id)
+        
+        if article:
+            return jsonify({
+                'success': True,
+                'data': article
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Article not found',
+                'message': '文章不存在'
+            }), 404
+        
+    except Exception as e:
+        logger.error(f"获取文章详情失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '获取文章详情失败'
+        }), 500
+
+
+@app.route('/api/crawler/stats', methods=['GET'])
+@require_auth
+def get_crawler_stats():
+    """
+    获取爬虫统计信息
+    ---
+    tags:
+      - 爬虫
+    security:
+      - ApiKeyAuth: []
+    responses:
+      200:
+        description: 统计信息
+      401:
+        description: 未授权
+    """
+    try:
+        service = get_crawler_service()
+        stats = service.get_statistics()
+        
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"获取统计信息失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '获取统计信息失败'
+        }), 500
 
 
 # ============================================================================

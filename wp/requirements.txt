@@ -4,6 +4,10 @@ flask-cors==4.0.0
 requests==2.31.0
 python-dotenv==1.0.0
 
+# 爬虫框架
+crawl4ai==0.3.74
+beautifulsoup4==4.12.3
+
 # API文档和限流
 flasgger==0.9.7.1
 Flask-Limiter==3.5.0
