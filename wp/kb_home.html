@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库管理 - Knowledge Base</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-content">
+                <h1>📚 知识库管理</h1>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-secondary" title="刷新数据">
+                        <span class="icon">🔄</span> 刷新
+                    </button>
+                    <button id="exportBtn" class="btn btn-primary" title="导出CSV">
+                        <span class="icon">📥</span> 导出
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="apiKeySection" class="api-key-section">
+            <div class="api-key-card">
+                <h3>🔑 API Key 配置</h3>
+                <p class="subtitle">请输入API密钥以访问知识库数据</p>
+                <div class="api-key-input-group">
+                    <input type="password" id="apiKeyInput" placeholder="输入您的API密钥" />
+                    <button id="saveApiKeyBtn" class="btn btn-primary">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <main id="mainContent" class="main-content" style="display: none;">
+            <aside class="sidebar">
+                <div class="filter-section">
+                    <div class="filter-header">
+                        <h3>🔍 筛选条件</h3>
+                        <button id="resetFiltersBtn" class="btn-link">重置</button>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="searchInput">关键词搜索</label>
+                        <input type="text" id="searchInput" placeholder="搜索标题、链接..." />
+                    </div>
+
+                    <div class="filter-group">
+                        <label>状态筛选</label>
+                        <div id="statusFilters" class="checkbox-group"></div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="tagFilter">标签筛选</label>
+                        <select id="tagFilter">
+                            <option value="">全部标签</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="dateFrom">日期范围</label>
+                        <div class="date-range">
+                            <input type="date" id="dateFrom" />
+                            <span>至</span>
+                            <input type="date" id="dateTo" />
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="sortField">排序方式</label>
+                        <select id="sortField">
+                            <option value="created_at">创建时间</option>
+                            <option value="updated_at">更新时间</option>
+                            <option value="title">标题</option>
+                            <option value="status">状态</option>
+                        </select>
+                        <select id="sortOrder">
+                            <option value="DESC">降序</option>
+                            <option value="ASC">升序</option>
+                        </select>
+                    </div>
+
+                    <button id="applyFiltersBtn" class="btn btn-primary btn-block">应用筛选</button>
+                </div>
+
+                <div class="summary-section">
+                    <h3>📊 统计概览</h3>
+                    <div id="summaryCards" class="summary-cards"></div>
+                </div>
+            </aside>
+
+            <section class="content-area">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <span id="resultsCount" class="results-count">加载中...</span>
+                    </div>
+                    <div class="toolbar-right">
+                        <button id="columnSettingsBtn" class="btn btn-secondary btn-sm">
+                            <span class="icon">⚙️</span> 列设置
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loadingState" class="state-message loading">
+                    <div class="spinner"></div>
+                    <p>加载数据中...</p>
+                </div>
+
+                <div id="errorState" class="state-message error" style="display: none;">
+                    <p class="error-icon">⚠️</p>
+                    <p id="errorMessage">加载失败</p>
+                    <button id="retryBtn" class="btn btn-secondary">重试</button>
+                </div>
+
+                <div id="emptyState" class="state-message empty" style="display: none;">
+                    <p class="empty-icon">📭</p>
+                    <p>暂无数据</p>
+                </div>
+
+                <div id="tableContainer" class="table-container" style="display: none;">
+                    <table id="dataTable" class="data-table">
+                        <thead>
+                            <tr id="tableHeader"></tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="paginationContainer" class="pagination" style="display: none;">
+                    <button id="prevPageBtn" class="btn btn-secondary btn-sm">上一页</button>
+                    <span id="pageInfo" class="page-info"></span>
+                    <button id="nextPageBtn" class="btn btn-secondary btn-sm">下一页</button>
+                    <select id="pageSizeSelect" class="page-size-select">
+                        <option value="20">20 条/页</option>
+                        <option value="50" selected>50 条/页</option>
+                        <option value="100">100 条/页</option>
+                        <option value="200">200 条/页</option>
+                    </select>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="columnModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>列显示设置</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">选择要显示的列（导出时也会应用此选择）</p>
+                <div id="columnCheckboxes" class="checkbox-group"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="selectAllColumnsBtn" class="btn btn-secondary">全选</button>
+                <button id="applyColumnsBtn" class="btn btn-primary">应用</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="exportModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>导出CSV</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">当前列设置将应用于导出，筛选条件也会生效</p>
+                <div id="exportInfo" class="export-info"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-cancel btn btn-secondary">取消</button>
+                <button id="confirmExportBtn" class="btn btn-primary">
+                    <span class="icon">📥</span> 确认导出
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast" style="display: none;"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
