@@ -113,6 +113,24 @@ def init_sqlite(db_path: str) -> bool:
             )
         """)
         
+        # 创建提取链接表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS extracted_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id TEXT NOT NULL,
+                original_link TEXT NOT NULL,
+                original_password TEXT,
+                new_link TEXT,
+                new_password TEXT,
+                new_title TEXT,
+                status TEXT DEFAULT 'pending',
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(article_id, original_link)
+            )
+        """)
+        
         # 创建索引
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_tasks(status)
@@ -131,6 +149,12 @@ def init_sqlite(db_path: str) -> bool:
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_articles_article_id ON articles(article_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extracted_links_article_id ON extracted_links(article_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extracted_links_status ON extracted_links(status)
         """)
         
         conn.commit()
@@ -250,6 +274,25 @@ def init_mysql(config: Config) -> bool:
                 crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_article_id (article_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS extracted_links (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                article_id VARCHAR(255) NOT NULL,
+                original_link TEXT NOT NULL,
+                original_password VARCHAR(255),
+                new_link TEXT,
+                new_password VARCHAR(255),
+                new_title TEXT,
+                status VARCHAR(50) DEFAULT 'pending',
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_article_link (article_id, original_link(500)),
+                INDEX idx_article_id (article_id),
+                INDEX idx_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
         
@@ -387,12 +430,31 @@ def init_postgresql(config: Config) -> bool:
             )
         """)
         
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS extracted_links (
+                id SERIAL PRIMARY KEY,
+                article_id VARCHAR(255) NOT NULL,
+                original_link TEXT NOT NULL,
+                original_password VARCHAR(255),
+                new_link TEXT,
+                new_password VARCHAR(255),
+                new_title TEXT,
+                status VARCHAR(50) DEFAULT 'pending',
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(article_id, original_link)
+            )
+        """)
+        
         # 创建索引
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_tasks(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transfer_account ON transfer_tasks(account)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_status ON share_tasks(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_account ON share_tasks(account)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_article_id ON articles(article_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_article_id ON extracted_links(article_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_status ON extracted_links(status)")
         
         conn.commit()
         conn.close()

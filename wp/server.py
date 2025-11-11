@@ -24,6 +24,8 @@ from logger import get_logger
 from core_service import CoreService
 from init_db import initialize_database
 from crawler_service import CrawlerService
+from link_extractor_service import LinkExtractorService
+from link_processor_service import LinkProcessorService
 
 # 初始化配置
 config = get_config()
@@ -113,6 +115,10 @@ swagger_template = {
         {
             "name": "爬虫",
             "description": "文章爬取相关接口"
+        },
+        {
+            "name": "链接提取",
+            "description": "百度网盘链接提取和处理接口"
         }
     ]
 }
@@ -124,6 +130,7 @@ services: Dict[str, CoreService] = {}  # 账户名 -> 服务实例
 accounts: Dict[str, str] = {}  # 账户名 -> Cookie
 api_secret_key: str = config.API_SECRET_KEY
 crawler_service: Optional[CrawlerService] = None  # 爬虫服务实例
+link_extractor_service: Optional[LinkExtractorService] = None  # 链接提取服务实例
 
 
 def load_accounts_from_env():
@@ -1126,6 +1133,14 @@ def get_crawler_service() -> CrawlerService:
     return crawler_service
 
 
+def get_link_extractor_service() -> LinkExtractorService:
+    """获取或创建链接提取服务实例"""
+    global link_extractor_service
+    if link_extractor_service is None:
+        link_extractor_service = LinkExtractorService(config)
+    return link_extractor_service
+
+
 @app.route('/api/crawler/start', methods=['POST'])
 @require_auth
 @limiter.limit("5 per hour")
@@ -1300,6 +1315,286 @@ def get_crawler_stats():
             'success': False,
             'error': str(e),
             'message': '获取统计信息失败'
+        }), 500
+
+
+# ============================================================================
+# 链接提取和处理接口
+# ============================================================================
+
+@app.route('/api/links/extract', methods=['POST'])
+@require_auth
+def extract_links():
+    """
+    从文章中提取百度网盘链接
+    ---
+    tags:
+      - 链接提取
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - name: body
+        in: body
+        required: false
+        schema:
+          type: object
+          properties:
+            limit:
+              type: integer
+              default: 100
+              description: 处理文章数量限制
+            offset:
+              type: integer
+              default: 0
+              description: 偏移量
+    responses:
+      200:
+        description: 提取成功
+      401:
+        description: 未授权
+    """
+    try:
+        data = request.get_json() or {}
+        limit = data.get('limit', 100)
+        offset = data.get('offset', 0)
+        
+        service = get_link_extractor_service()
+        result = service.get_articles_with_links(limit, offset)
+        
+        # 保存提取的链接
+        saved_count = 0
+        for article in result:
+            for link in article.get('extracted_links', []):
+                service.save_extracted_link(
+                    article_id=article['article_id'],
+                    original_link=link['link'],
+                    original_password=link['password'],
+                    status='pending'
+                )
+                saved_count += 1
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'articles_processed': len(result),
+                'links_extracted': saved_count
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"提取链接失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '提取链接失败'
+        }), 500
+
+
+@app.route('/api/links/list', methods=['GET'])
+@require_auth
+def list_extracted_links():
+    """
+    获取提取的链接列表
+    ---
+    tags:
+      - 链接提取
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - name: article_id
+        in: query
+        type: string
+        required: false
+        description: 筛选指定文章ID
+      - name: status
+        in: query
+        type: string
+        required: false
+        description: 筛选指定状态
+      - name: limit
+        in: query
+        type: integer
+        default: 100
+        description: 返回数量限制
+      - name: offset
+        in: query
+        type: integer
+        default: 0
+        description: 偏移量
+    responses:
+      200:
+        description: 链接列表
+      401:
+        description: 未授权
+    """
+    try:
+        article_id = request.args.get('article_id')
+        status = request.args.get('status')
+        limit = int(request.args.get('limit', 100))
+        offset = int(request.args.get('offset', 0))
+        
+        service = get_link_extractor_service()
+        links = service.get_extracted_links(article_id, status, limit, offset)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'links': links,
+                'count': len(links),
+                'limit': limit,
+                'offset': offset
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"获取链接列表失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '获取链接列表失败'
+        }), 500
+
+
+@app.route('/api/links/stats', methods=['GET'])
+@require_auth
+def get_links_stats():
+    """
+    获取链接提取统计信息
+    ---
+    tags:
+      - 链接提取
+    security:
+      - ApiKeyAuth: []
+    responses:
+      200:
+        description: 统计信息
+      401:
+        description: 未授权
+    """
+    try:
+        service = get_link_extractor_service()
+        stats = service.get_statistics()
+        
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"获取统计信息失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '获取统计信息失败'
+        }), 500
+
+
+@app.route('/api/links/process', methods=['POST'])
+@require_auth
+def process_links():
+    """
+    处理链接：提取 → 转存 → 分享
+    ---
+    tags:
+      - 链接提取
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            account:
+              type: string
+              required: true
+              description: 账户名称
+            limit:
+              type: integer
+              default: 50
+              description: 处理数量限制
+            target_path:
+              type: string
+              default: /批量转存
+              description: 转存目标路径
+            expiry:
+              type: integer
+              default: 7
+              description: 分享有效期（天）
+            password:
+              type: string
+              required: false
+              description: 固定提取码（可选）
+            mode:
+              type: string
+              default: all
+              enum: [extract, transfer, share, all]
+              description: 处理模式
+    responses:
+      200:
+        description: 处理成功
+      401:
+        description: 未授权
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing request body',
+                'message': '缺少请求体'
+            }), 400
+        
+        account = data.get('account')
+        if not account:
+            return jsonify({
+                'success': False,
+                'error': 'Missing account parameter',
+                'message': '缺少账户参数'
+            }), 400
+        
+        # 获取或创建服务
+        service = get_service(account)
+        if not service:
+            return jsonify({
+                'success': False,
+                'error': 'Service not initialized',
+                'message': '服务未初始化，请先登录'
+            }), 400
+        
+        # 创建链接处理服务
+        processor = LinkProcessorService(account, service, config)
+        
+        limit = data.get('limit', 50)
+        target_path = data.get('target_path', '/批量转存')
+        expiry = data.get('expiry', 7)
+        password = data.get('password')
+        mode = data.get('mode', 'all')
+        
+        # 根据模式执行不同操作
+        if mode == 'extract':
+            result = processor.extract_and_save_links(limit=limit)
+        elif mode == 'transfer':
+            result = processor.process_pending_links(limit=limit, target_path=target_path)
+        elif mode == 'share':
+            result = processor.share_transferred_links(expiry=expiry, password=password)
+        else:  # all
+            result = processor.process_all(limit=limit, target_path=target_path, 
+                                          expiry=expiry, password=password)
+        
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+        
+    except Exception as e:
+        logger.error(f"处理链接失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': '处理链接失败'
         }), 500
 
 
