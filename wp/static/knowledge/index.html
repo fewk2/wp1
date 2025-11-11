@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库 - Knowledge Base</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .info {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #2196F3;
+            margin-bottom: 20px;
+        }
+        .api-list {
+            list-style: none;
+            padding: 0;
+        }
+        .api-list li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .api-list li:last-child {
+            border-bottom: none;
+        }
+        .method {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .get {
+            background: #61affe;
+            color: white;
+        }
+        .endpoint {
+            font-family: monospace;
+            color: #333;
+        }
+        a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>知识库管理界面</h1>
+        <p class="subtitle">Knowledge Base Management UI</p>
+        
+        <div class="info">
+            <strong>📢 提示：</strong>此处为知识库UI占位页面。完整的前端界面正在开发中。
+        </div>
+        
+        <h2>可用的API接口</h2>
+        <p>您可以通过以下REST API访问知识库数据：</p>
+        
+        <ul class="api-list">
+            <li>
+                <span class="method get">GET</span>
+                <span class="endpoint">/api/knowledge/entries</span>
+                <br>
+                <small>获取知识库条目列表（支持分页、搜索、筛选）</small>
+            </li>
+            <li>
+                <span class="method get">GET</span>
+                <span class="endpoint">/api/knowledge/tags</span>
+                <br>
+                <small>获取所有标签列表</small>
+            </li>
+            <li>
+                <span class="method get">GET</span>
+                <span class="endpoint">/api/knowledge/statuses</span>
+                <br>
+                <small>获取状态统计信息</small>
+            </li>
+            <li>
+                <span class="method get">GET</span>
+                <span class="endpoint">/api/knowledge/export</span>
+                <br>
+                <small>导出知识库条目为CSV文件</small>
+            </li>
+            <li>
+                <span class="method get">GET</span>
+                <span class="endpoint">/api/knowledge/entry/{id}</span>
+                <br>
+                <small>获取单个条目的详细信息</small>
+            </li>
+        </ul>
+        
+        <h2>API文档</h2>
+        <p>
+            完整的API文档请访问：
+            <a href="/docs" target="_blank">Swagger API文档</a>
+        </p>
+        
+        <h2>注意事项</h2>
+        <ul>
+            <li>所有API请求需要在请求头中包含 <code>X-API-Key</code> 进行身份验证</li>
+            <li>CSV导出支持自定义字段和过滤条件</li>
+            <li>支持全文搜索、状态筛选、标签筛选和日期范围过滤</li>
+        </ul>
+    </div>
+</body>
+</html>
