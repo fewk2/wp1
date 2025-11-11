@@ -13,7 +13,7 @@ from functools import wraps
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -26,6 +26,7 @@ from init_db import initialize_database
 from crawler_service import CrawlerService
 from link_extractor_service import LinkExtractorService
 from link_processor_service import LinkProcessorService
+from knowledge_api import knowledge_bp
 
 # 初始化配置
 config = get_config()
@@ -119,11 +120,18 @@ swagger_template = {
         {
             "name": "链接提取",
             "description": "百度网盘链接提取和处理接口"
+        },
+        {
+            "name": "知识库",
+            "description": "知识库条目查询、筛选和导出接口"
         }
     ]
 }
 
 swagger = Swagger(app, config=swagger_config, template=swagger_template)
+
+# 注册蓝图
+app.register_blueprint(knowledge_bp)
 
 # 全局变量
 services: Dict[str, CoreService] = {}  # 账户名 -> 服务实例
@@ -1596,6 +1604,43 @@ def process_links():
             'error': str(e),
             'message': '处理链接失败'
         }), 500
+
+
+# ============================================================================
+# 知识库UI静态文件服务
+# ============================================================================
+
+@app.route('/kb')
+@app.route('/kb/')
+def serve_knowledge_base_index():
+    """
+    提供知识库UI主页
+    """
+    static_dir = os.path.join(os.path.dirname(__file__), 'static', 'knowledge')
+    if os.path.exists(static_dir):
+        return send_from_directory(static_dir, 'index.html')
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Knowledge base UI not found',
+            'message': '知识库UI尚未部署'
+        }), 404
+
+
+@app.route('/kb/<path:path>')
+def serve_knowledge_base_assets(path):
+    """
+    提供知识库UI静态资源
+    """
+    static_dir = os.path.join(os.path.dirname(__file__), 'static', 'knowledge')
+    if os.path.exists(static_dir):
+        return send_from_directory(static_dir, path)
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Knowledge base UI not found',
+            'message': '知识库UI尚未部署'
+        }), 404
 
 
 # ============================================================================
