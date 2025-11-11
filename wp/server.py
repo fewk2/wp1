@@ -234,9 +234,9 @@ def get_or_create_service(account: Optional[str] = None) -> Optional[CoreService
     
     cookie = accounts[account]
     
-    # 创建服务实例
+    # 创建服务实例（传入account参数）
     throttle_config = config.get_throttle_config()
-    service = CoreService(cookie, throttle_config)
+    service = CoreService(cookie, throttle_config, account=account)
     success, error_msg = service.login(cookie)
     
     if success:
@@ -424,6 +424,10 @@ def import_transfer_tasks(service):
               type: string
               description: 默认保存路径
               example: /批量转存
+            auto_share:
+              type: boolean
+              description: 是否在转存成功后自动创建分享
+              example: false
       - in: formData
         name: file
         type: file
@@ -447,6 +451,7 @@ def import_transfer_tasks(service):
         
         file = request.files['file']
         default_target_path = request.form.get('default_target_path', '/批量转存')
+        auto_share = request.form.get('auto_share', 'false').lower() == 'true'
         
         try:
             content = file.read().decode('utf-8-sig')
@@ -469,9 +474,10 @@ def import_transfer_tasks(service):
         
         csv_data = data['csv_data']
         default_target_path = data.get('default_target_path', '/批量转存')
+        auto_share = data.get('auto_share', False)
     
     # 添加任务
-    count = service.add_transfer_tasks_from_csv(csv_data, default_target_path)
+    count = service.add_transfer_tasks_from_csv(csv_data, default_target_path, auto_share)
     
     if count > 0:
         logger.info(f"导入转存任务成功: {count}个")
@@ -734,18 +740,196 @@ def clear_transfer_queue(service):
       - 转存
     security:
       - ApiKeyAuth: []
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              description: 可选的状态过滤（如 completed, failed）
     responses:
       200:
         description: 清空成功
       401:
         description: 未授权
     """
-    service.clear_transfer_queue()
-    logger.info("转存队列已清空")
+    data = request.get_json() or {}
+    status = data.get('status')
+    count = service.clear_transfer_queue(status)
+    logger.info(f"转存队列已清空: {count}个任务")
     return jsonify({
         'success': True,
-        'message': '转存队列已清空'
+        'message': '转存队列已清空',
+        'count': count
     })
+
+
+@app.route('/api/transfer/remove', methods=['POST'])
+@require_service
+def remove_transfer_task(service):
+    """
+    删除转存任务
+    ---
+    tags:
+      - 转存
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - task_id
+          properties:
+            task_id:
+              type: integer
+              description: 任务ID
+    responses:
+      200:
+        description: 删除成功
+      400:
+        description: 请求参数错误
+      401:
+        description: 未授权
+    """
+    data = request.get_json()
+    if not data or 'task_id' not in data:
+        return jsonify({
+            'success': False,
+            'error': '缺少task_id参数'
+        }), 400
+    
+    task_id = data['task_id']
+    success = service.remove_transfer_task(task_id)
+    
+    if success:
+        logger.info(f"删除转存任务: {task_id}")
+        return jsonify({
+            'success': True,
+            'message': '任务已删除'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': '删除任务失败'
+        }), 400
+
+
+@app.route('/api/transfer/reorder', methods=['POST'])
+@require_service
+def reorder_transfer_tasks(service):
+    """
+    重新排序转存任务
+    ---
+    tags:
+      - 转存
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - task_ids
+          properties:
+            task_ids:
+              type: array
+              items:
+                type: integer
+              description: 任务ID列表（按新顺序）
+    responses:
+      200:
+        description: 排序成功
+      400:
+        description: 请求参数错误
+      401:
+        description: 未授权
+    """
+    data = request.get_json()
+    if not data or 'task_ids' not in data:
+        return jsonify({
+            'success': False,
+            'error': '缺少task_ids参数'
+        }), 400
+    
+    task_ids = data['task_ids']
+    success = service.reorder_transfer_tasks(task_ids)
+    
+    if success:
+        logger.info(f"重新排序转存任务: {len(task_ids)}个")
+        return jsonify({
+            'success': True,
+            'message': '任务已重新排序'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': '重新排序失败'
+        }), 400
+
+
+@app.route('/api/transfer/toggle_auto_share', methods=['POST'])
+@require_service
+def toggle_auto_share(service):
+    """
+    切换转存任务的auto_share标志
+    ---
+    tags:
+      - 转存
+    security:
+      - ApiKeyAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - task_id
+            - auto_share
+          properties:
+            task_id:
+              type: integer
+              description: 任务ID
+            auto_share:
+              type: boolean
+              description: 是否启用自动分享
+    responses:
+      200:
+        description: 更新成功
+      400:
+        description: 请求参数错误
+      401:
+        description: 未授权
+    """
+    data = request.get_json()
+    if not data or 'task_id' not in data or 'auto_share' not in data:
+        return jsonify({
+            'success': False,
+            'error': '缺少task_id或auto_share参数'
+        }), 400
+    
+    task_id = data['task_id']
+    auto_share = data['auto_share']
+    success = service.toggle_auto_share(task_id, auto_share)
+    
+    if success:
+        logger.info(f"切换auto_share: task_id={task_id}, auto_share={auto_share}")
+        return jsonify({
+            'success': True,
+            'message': 'auto_share已更新'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': '更新失败'
+        }), 400
 
 
 @app.route('/api/transfer/export', methods=['GET'])
@@ -967,12 +1151,69 @@ def get_share_queue(service):
 @require_service
 def clear_share_queue(service):
     """清空分享队列"""
-    service.clear_share_queue()
-    logger.info("分享队列已清空")
+    data = request.get_json() or {}
+    status = data.get('status')
+    count = service.clear_share_queue(status)
+    logger.info(f"分享队列已清空: {count}个任务")
     return jsonify({
         'success': True,
-        'message': '分享队列已清空'
+        'message': '分享队列已清空',
+        'count': count
     })
+
+
+@app.route('/api/share/remove', methods=['POST'])
+@require_service
+def remove_share_task(service):
+    """删除分享任务"""
+    data = request.get_json()
+    if not data or 'task_id' not in data:
+        return jsonify({
+            'success': False,
+            'error': '缺少task_id参数'
+        }), 400
+    
+    task_id = data['task_id']
+    success = service.remove_share_task(task_id)
+    
+    if success:
+        logger.info(f"删除分享任务: {task_id}")
+        return jsonify({
+            'success': True,
+            'message': '任务已删除'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': '删除任务失败'
+        }), 400
+
+
+@app.route('/api/share/reorder', methods=['POST'])
+@require_service
+def reorder_share_tasks(service):
+    """重新排序分享任务"""
+    data = request.get_json()
+    if not data or 'task_ids' not in data:
+        return jsonify({
+            'success': False,
+            'error': '缺少task_ids参数'
+        }), 400
+    
+    task_ids = data['task_ids']
+    success = service.reorder_share_tasks(task_ids)
+    
+    if success:
+        logger.info(f"重新排序分享任务: {len(task_ids)}个")
+        return jsonify({
+            'success': True,
+            'message': '任务已重新排序'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'error': '重新排序失败'
+        }), 400
 
 
 @app.route('/api/share/export', methods=['GET'])
