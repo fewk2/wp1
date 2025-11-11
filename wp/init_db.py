@@ -100,6 +100,19 @@ def init_sqlite(db_path: str) -> bool:
             )
         """)
         
+        # 创建文章表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS articles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                article_id TEXT UNIQUE NOT NULL,
+                url TEXT UNIQUE NOT NULL,
+                title TEXT,
+                content TEXT,
+                crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
         # 创建索引
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_tasks(status)
@@ -112,6 +125,12 @@ def init_sqlite(db_path: str) -> bool:
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_share_account ON share_tasks(account)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_articles_article_id ON articles(article_id)
         """)
         
         conn.commit()
@@ -218,6 +237,19 @@ def init_mysql(config: Config) -> bool:
                 value TEXT NOT NULL,
                 description TEXT,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS articles (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                article_id VARCHAR(255) UNIQUE NOT NULL,
+                url TEXT NOT NULL,
+                title TEXT,
+                content LONGTEXT,
+                crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_article_id (article_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
         
@@ -343,11 +375,24 @@ def init_postgresql(config: Config) -> bool:
             )
         """)
         
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS articles (
+                id SERIAL PRIMARY KEY,
+                article_id VARCHAR(255) UNIQUE NOT NULL,
+                url TEXT NOT NULL,
+                title TEXT,
+                content TEXT,
+                crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
         # 创建索引
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_tasks(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transfer_account ON transfer_tasks(account)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_status ON share_tasks(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_account ON share_tasks(account)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_article_id ON articles(article_id)")
         
         conn.commit()
         conn.close()
