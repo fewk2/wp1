@@ -131,6 +131,43 @@ def init_sqlite(db_path: str) -> bool:
             )
         """)
         
+        # 添加新列（如果不存在）- 队列管理功能
+        # 检查并添加 order_index, auto_share, title, metadata 列
+        try:
+            cursor.execute("ALTER TABLE transfer_tasks ADD COLUMN order_index INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # 列已存在
+        
+        try:
+            cursor.execute("ALTER TABLE transfer_tasks ADD COLUMN auto_share INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE transfer_tasks ADD COLUMN title TEXT")
+        except sqlite3.OperationalError:
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE transfer_tasks ADD COLUMN metadata TEXT")
+        except sqlite3.OperationalError:
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE share_tasks ADD COLUMN order_index INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE share_tasks ADD COLUMN title TEXT")
+        except sqlite3.OperationalError:
+            pass
+        
+        try:
+            cursor.execute("ALTER TABLE share_tasks ADD COLUMN metadata TEXT")
+        except sqlite3.OperationalError:
+            pass
+        
         # 创建索引
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_tasks(status)
@@ -139,10 +176,16 @@ def init_sqlite(db_path: str) -> bool:
             CREATE INDEX IF NOT EXISTS idx_transfer_account ON transfer_tasks(account)
         """)
         cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_transfer_order ON transfer_tasks(account, order_index)
+        """)
+        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_share_status ON share_tasks(status)
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_share_account ON share_tasks(account)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_share_order ON share_tasks(account, order_index)
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url)
@@ -221,10 +264,15 @@ def init_mysql(config: Config) -> bool:
                 status VARCHAR(50) DEFAULT 'pending',
                 error_message TEXT,
                 filename TEXT,
+                title TEXT,
+                order_index INT DEFAULT 0,
+                auto_share TINYINT DEFAULT 0,
+                metadata TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_status (status),
-                INDEX idx_account (account)
+                INDEX idx_account (account),
+                INDEX idx_order (account, order_index)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
         
@@ -240,10 +288,14 @@ def init_mysql(config: Config) -> bool:
                 share_link TEXT,
                 status VARCHAR(50) DEFAULT 'pending',
                 error_message TEXT,
+                title TEXT,
+                order_index INT DEFAULT 0,
+                metadata TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_status (status),
-                INDEX idx_account (account)
+                INDEX idx_account (account),
+                INDEX idx_order (account, order_index)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
         
@@ -385,6 +437,10 @@ def init_postgresql(config: Config) -> bool:
                 status VARCHAR(50) DEFAULT 'pending',
                 error_message TEXT,
                 filename TEXT,
+                title TEXT,
+                order_index INTEGER DEFAULT 0,
+                auto_share SMALLINT DEFAULT 0,
+                metadata TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -402,6 +458,9 @@ def init_postgresql(config: Config) -> bool:
                 share_link TEXT,
                 status VARCHAR(50) DEFAULT 'pending',
                 error_message TEXT,
+                title TEXT,
+                order_index INTEGER DEFAULT 0,
+                metadata TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -471,8 +530,10 @@ def init_postgresql(config: Config) -> bool:
         # 创建索引
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_tasks(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_transfer_account ON transfer_tasks(account)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_transfer_order ON transfer_tasks(account, order_index)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_status ON share_tasks(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_account ON share_tasks(account)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_order ON share_tasks(account, order_index)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_article_id ON articles(article_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_title ON articles(title)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_crawled_at ON articles(crawled_at)")
