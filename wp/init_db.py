@@ -151,10 +151,25 @@ def init_sqlite(db_path: str) -> bool:
             CREATE INDEX IF NOT EXISTS idx_articles_article_id ON articles(article_id)
         """)
         cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_articles_title ON articles(title)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_articles_crawled_at ON articles(crawled_at)
+        """)
+        cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_extracted_links_article_id ON extracted_links(article_id)
         """)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_extracted_links_status ON extracted_links(status)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extracted_links_created_at ON extracted_links(created_at)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extracted_links_updated_at ON extracted_links(updated_at)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_extracted_links_new_link ON extracted_links(new_link)
         """)
         
         conn.commit()
@@ -295,6 +310,12 @@ def init_mysql(config: Config) -> bool:
                 INDEX idx_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         """)
+        
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_title ON articles(title(255))")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_crawled_at ON articles(crawled_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_created_at ON extracted_links(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_updated_at ON extracted_links(updated_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_new_link ON extracted_links(new_link(500))")
         
         conn.commit()
         conn.close()
@@ -453,8 +474,13 @@ def init_postgresql(config: Config) -> bool:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_status ON share_tasks(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_share_account ON share_tasks(account)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_article_id ON articles(article_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_title ON articles(title)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_crawled_at ON articles(crawled_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_article_id ON extracted_links(article_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_status ON extracted_links(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_created_at ON extracted_links(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_updated_at ON extracted_links(updated_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_extracted_links_new_link ON extracted_links(new_link)")
         
         conn.commit()
         conn.close()
